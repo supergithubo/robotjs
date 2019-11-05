@@ -41,18 +41,11 @@
 
 #elif defined(IS_WINDOWS)
 
-#define MMMouseToMEventF(down, button) \
-	(down ? MMMouseDownToMEventF(button) : MMMouseUpToMEventF(button))
+#define MMMouseDownToSendInputFlag(button) \
+	((button) == (LEFT_BUTTON) ? MOUSEEVENTF_LEFTDOWN : MOUSEEVENTF_RIGHTDOWN)
 
-#define MMMouseUpToMEventF(button) \
-	((button) == LEFT_BUTTON ? MOUSEEVENTF_LEFTUP \
-	                         : ((button) == RIGHT_BUTTON ? MOUSEEVENTF_RIGHTUP \
-	                                                     : MOUSEEVENTF_MIDDLEUP))
-
-#define MMMouseDownToMEventF(button) \
-	((button) == LEFT_BUTTON ? MOUSEEVENTF_LEFTDOWN \
-	                         : ((button) == RIGHT_BUTTON ? MOUSEEVENTF_RIGHTDOWN \
-	                                                     : MOUSEEVENTF_MIDDLEDOWN))
+#define MMMouseUpToSendInputFlag(button) \
+	((button) == (LEFT_BUTTON) ? MOUSEEVENTF_LEFTUP : MOUSEEVENTF_RIGHTUP)
 
 #endif
 
@@ -118,6 +111,7 @@ void moveMouse(MMPoint point)
 	mouseInput.mi.dwExtraInfo = 0;
 	mouseInput.mi.mouseData = 0;
 	SendInput(1, &mouseInput, sizeof(mouseInput));
+
 #endif
 }
 
@@ -186,13 +180,15 @@ void toggleMouse(bool down, MMMouseButton button)
 	XSync(display, false);
 #elif defined(IS_WINDOWS)
 	INPUT mouseInput;
+
 	mouseInput.type = INPUT_MOUSE;
 	mouseInput.mi.dx = 0;
 	mouseInput.mi.dy = 0;
-	mouseInput.mi.dwFlags = MMMouseToMEventF(down, button);
-	mouseInput.mi.time = 0; //System will provide the timestamp
+	mouseInput.mi.dwFlags = down ? MMMouseDownToSendInputFlag(button) : MMMouseUpToSendInputFlag(button);
+	mouseInput.mi.time = 0;
 	mouseInput.mi.dwExtraInfo = 0;
 	mouseInput.mi.mouseData = 0;
+
 	SendInput(1, &mouseInput, sizeof(mouseInput));
 #endif
 }
@@ -244,7 +240,8 @@ void scrollMouse(int x, int y)
 #if defined(IS_WINDOWS)
 	// Fix for #97 https://github.com/octalmage/robotjs/issues/97,
 	// C89 needs variables declared on top of functions (mouseScrollInput)
-	INPUT mouseScrollInputs[2];
+	INPUT mouseScrollInputH;
+	INPUT mouseScrollInputV;
 #endif
 
   /* Direction should only be considered based on the scrollDirection. This
@@ -300,24 +297,25 @@ void scrollMouse(int x, int y)
 
 #elif defined(IS_WINDOWS)
 
-	mouseScrollInputs[0].type = INPUT_MOUSE;
-	mouseScrollInputs[0].mi.dx = 0;
-	mouseScrollInputs[0].mi.dy = 0;
-	mouseScrollInputs[0].mi.dwFlags = MOUSEEVENTF_WHEEL;
-	mouseScrollInputs[0].mi.time = 0;
-	mouseScrollInputs[0].mi.dwExtraInfo = 0;
+	mouseScrollInputH.type = INPUT_MOUSE;
+	mouseScrollInputH.mi.dx = 0;
+	mouseScrollInputH.mi.dy = 0;
+	mouseScrollInputH.mi.dwFlags = MOUSEEVENTF_HWHEEL;
+	mouseScrollInputH.mi.time = 0;
+	mouseScrollInputH.mi.dwExtraInfo = 0;
 	// Flip x to match other platforms.
-	mouseScrollInputs[0].mi.mouseData = -x;
+	mouseScrollInputH.mi.mouseData = -x;
 
-	mouseScrollInputs[1].type = INPUT_MOUSE;
-	mouseScrollInputs[1].mi.dx = 0;
-	mouseScrollInputs[1].mi.dy = 0;
-	mouseScrollInputs[1].mi.dwFlags = MOUSEEVENTF_HWHEEL;
-	mouseScrollInputs[1].mi.time = 0;
-	mouseScrollInputs[1].mi.dwExtraInfo = 0;
-	mouseScrollInputs[1].mi.mouseData = y;
+	mouseScrollInputV.type = INPUT_MOUSE;
+	mouseScrollInputV.mi.dx = 0;
+	mouseScrollInputV.mi.dy = 0;
+	mouseScrollInputV.mi.dwFlags = MOUSEEVENTF_WHEEL;
+	mouseScrollInputV.mi.time = 0;
+	mouseScrollInputV.mi.dwExtraInfo = 0;
+	mouseScrollInputV.mi.mouseData = y;
 
-	SendInput(2, mouseScrollInputs, sizeof(INPUT));
+	SendInput(1, &mouseScrollInputH, sizeof(mouseScrollInputH));
+	SendInput(1, &mouseScrollInputV, sizeof(mouseScrollInputV));
 #endif
 }
 
